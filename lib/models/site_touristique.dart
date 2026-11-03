@@ -8,7 +8,7 @@ class SiteTouristique {
   final String categorie;
   final String urlPhotos;
 
-  SiteTouristique({
+  const SiteTouristique({
     required this.id,
     required this.nom,
     required this.description,

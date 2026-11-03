@@ -1,8 +1,9 @@
 // lib/models/repositories/site_repository.dart
 import '../site_touristique.dart';
 import '../data_sources/xmlforge_database.dart';
+import 'site_catalog.dart';
 
-class SiteRepository {
+class SiteRepository implements SiteCatalog {
   final XmlForgeDatabase _dataSource = XmlForgeDatabase.instance;
 
   // CREATE : Ajouter un point d'intérêt fixe (Réservé admin côté contrôleur)
@@ -29,6 +30,7 @@ class SiteRepository {
   }
 
   // READ : Obtenir le catalogue traduit selon la langue de l'utilisateur (Jointure SQL)
+  @override
   Future<List<SiteTouristique>> obtenirSitesParLangue(String codeLangue) async {
     final String query = '''
       SELECT s.id, t.nom, t.description, s.latitude, s.longitude, s.categorie, s.url_photos 
