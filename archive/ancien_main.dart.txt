@@ -1,0 +1,674 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const TourGabonApp());
+}
+
+class TourGabonApp extends StatelessWidget {
+  const TourGabonApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const forestGreen = Color(0xFF176B4D);
+
+    return MaterialApp(
+      title: 'TourGabon',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: forestGreen,
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF7F8F5),
+        fontFamily: 'Roboto',
+      ),
+      home: const TourGabonHome(),
+    );
+  }
+}
+
+class TourGabonHome extends StatefulWidget {
+  const TourGabonHome({super.key});
+
+  @override
+  State<TourGabonHome> createState() => _TourGabonHomeState();
+}
+
+class _TourGabonHomeState extends State<TourGabonHome> {
+  int _selectedPage = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: IndexedStack(
+          index: _selectedPage,
+          children: const [
+            ExplorePage(),
+            MapPage(),
+            EventsPage(),
+            ProfilePage(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedPage,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedPage = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: 'Explorer',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Carte',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.event_outlined),
+            selectedIcon: Icon(Icons.event),
+            label: 'Événements',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ExplorePage extends StatefulWidget {
+  const ExplorePage({super.key});
+
+  @override
+  State<ExplorePage> createState() => _ExplorePageState();
+}
+
+class _ExplorePageState extends State<ExplorePage> {
+  String _audience = 'Touriste';
+  String _category = 'Tout';
+  String _query = '';
+
+  static const _categories = [
+    'Tout',
+    'Nature',
+    'Plage',
+    'Culture',
+    'Gastronomie',
+  ];
+
+  static const _spots = [
+    TouristSpot(
+      name: 'Parc national de la Lopé',
+      location: 'Ogooué-Ivindo',
+      category: 'Nature',
+      rating: '4,9',
+      icon: Icons.forest,
+      color: Color(0xFF387E58),
+    ),
+    TouristSpot(
+      name: 'Pointe-Denis',
+      location: 'Estuaire · à 30 min',
+      category: 'Plage',
+      rating: '4,8',
+      icon: Icons.beach_access,
+      color: Color(0xFF258B9A),
+    ),
+    TouristSpot(
+      name: 'Musée national',
+      location: 'Libreville',
+      category: 'Culture',
+      rating: '4,6',
+      icon: Icons.account_balance,
+      color: Color(0xFFB36C36),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleSpots = _spots.where((spot) {
+      final matchesCategory = _category == 'Tout' || spot.category == _category;
+      final searchText = '${spot.name} ${spot.location} ${spot.category}'
+          .toLowerCase();
+      final matchesQuery = searchText.contains(_query.toLowerCase());
+      return matchesCategory && matchesQuery;
+    }).toList();
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              _buildHeader(context),
+              const SizedBox(height: 22),
+              _buildAudienceSelector(),
+              const SizedBox(height: 18),
+              _buildSearchField(),
+              const SizedBox(height: 22),
+              _buildWelcomeCard(),
+              const SizedBox(height: 26),
+              _buildSectionTitle('Explorer par envie', 'Tout voir'),
+              const SizedBox(height: 12),
+              _buildCategories(),
+              const SizedBox(height: 26),
+              _buildSectionTitle(
+                _audience == 'Local' ? 'Près de vous' : 'À ne pas manquer',
+                'Voir tout',
+              ),
+              const SizedBox(height: 14),
+              if (visibleSpots.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 28),
+                  child: Center(
+                    child: Text('Aucun lieu ne correspond à cette recherche.'),
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 228,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: visibleSpots.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 14),
+                    itemBuilder: (context, index) =>
+                        SpotCard(spot: visibleSpots[index]),
+                  ),
+                ),
+              const SizedBox(height: 26),
+              _buildLocalEventCard(),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE2F0E7),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.travel_explore, color: Color(0xFF176B4D)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'TourGabon',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const Text(
+                'Le Gabon, à votre façon',
+                style: TextStyle(color: Color(0xFF747C76), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        IconButton.filledTonal(
+          tooltip: 'Notifications',
+          onPressed: () {},
+          icon: const Icon(Icons.notifications_none),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAudienceSelector() {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(
+          value: 'Touriste',
+          label: Text('Je découvre'),
+          icon: Icon(Icons.flight_takeoff),
+        ),
+        ButtonSegment(
+          value: 'Local',
+          label: Text('Je suis du coin'),
+          icon: Icon(Icons.home_outlined),
+        ),
+      ],
+      selected: {_audience},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) {
+        setState(() {
+          _audience = selection.first;
+        });
+      },
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Un lieu, une activité, une envie…',
+        prefixIcon: const Icon(Icons.search),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      onChanged: (value) {
+        setState(() {
+          _query = value.trim();
+        });
+      },
+    );
+  }
+
+  Widget _buildWelcomeCard() {
+    return Container(
+      height: 190,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF155D43), Color(0xFF32835A)],
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -25,
+            top: -40,
+            child: Container(
+              height: 190,
+              width: 190,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 24,
+            bottom: 8,
+            child: Icon(
+              Icons.forest,
+              size: 126,
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'GABON · AFRIQUE CENTRALE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                const Text(
+                  'Une nature\nsans limites.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 27,
+                    height: 1.05,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Votre prochaine aventure commence ici.',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, String action) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+        ),
+        TextButton(
+          onPressed: () {},
+          child: Text(action, style: const TextStyle(fontSize: 12)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategories() {
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          return ChoiceChip(
+            label: Text(category),
+            selected: _category == category,
+            onSelected: (_) {
+              setState(() {
+                _category = category;
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLocalEventCard() {
+    final isLocal = _audience == 'Local';
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1DF),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              isLocal ? Icons.local_activity_outlined : Icons.wb_sunny_outlined,
+              color: const Color(0xFF9B5B20),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isLocal ? 'Quoi de neuf ce week-end ?' : 'L’esprit du Gabon',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isLocal
+                      ? 'Marchés, concerts et sorties près de vous.'
+                      : 'Partez à la rencontre de ses paysages.',
+                  style: const TextStyle(
+                    color: Color(0xFF725C45),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.arrow_forward, size: 19, color: Color(0xFF9B5B20)),
+        ],
+      ),
+    );
+  }
+}
+
+class TouristSpot {
+  const TouristSpot({
+    required this.name,
+    required this.location,
+    required this.category,
+    required this.rating,
+    required this.icon,
+    required this.color,
+  });
+
+  final String name;
+  final String location;
+  final String category;
+  final String rating;
+  final IconData icon;
+  final Color color;
+}
+
+class SpotCard extends StatelessWidget {
+  const SpotCard({super.key, required this.spot});
+
+  final TouristSpot spot;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 236,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: spot.color,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    spot.icon,
+                    size: 76,
+                    color: Colors.white.withValues(alpha: 0.82),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          size: 14,
+                          color: Color(0xFFE7A52C),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          spot.rating,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            spot.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, size: 14),
+              const SizedBox(width: 3),
+              Expanded(
+                child: Text(
+                  spot.location,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF747C76),
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              Text(
+                spot.category,
+                style: const TextStyle(
+                  color: Color(0xFF176B4D),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MapPage extends StatelessWidget {
+  const MapPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SimpleSectionPage(
+      icon: Icons.map_outlined,
+      title: 'Explorer la carte',
+      description: 'Les lieux à découvrir au Gabon apparaîtront ici. La carte interactive sera ajoutée dans une prochaine étape.',
+      badge: 'CARTE DU GABON',
+    );
+  }
+}
+
+class EventsPage extends StatelessWidget {
+  const EventsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SimpleSectionPage(
+      icon: Icons.event_available_outlined,
+      title: 'Les événements',
+      description: 'Festivals, marchés et rendez-vous culturels : retrouvez bientôt les sorties à ne pas manquer.',
+      badge: 'AGENDA LOCAL',
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SimpleSectionPage(
+      icon: Icons.person_outline,
+      title: 'Votre profil',
+      description: 'Choisissez vos préférences de voyage et retrouvez vos lieux favoris.',
+      badge: 'BIENVENUE SUR TOURGABON',
+    );
+  }
+}
+
+class SimpleSectionPage extends StatelessWidget {
+  const SimpleSectionPage({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.badge,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final String badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              height: 104,
+              width: 104,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2F0E7),
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Icon(icon, size: 48, color: const Color(0xFF176B4D)),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              badge,
+              style: const TextStyle(
+                color: Color(0xFF176B4D),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: const TextStyle(height: 1.5, color: Color(0xFF747C76)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
