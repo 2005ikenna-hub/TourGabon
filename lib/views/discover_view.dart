@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../controllers/site_controller.dart';
 import '../models/site_touristique.dart';
+import 'gabon_map_view.dart';
 
 const _gabonGreen = Color(0xFF009E49);
 const _gabonYellow = Color(0xFFFCD116);
@@ -28,7 +29,7 @@ class _DiscoverViewState extends State<DiscoverView> {
   String _selectedCategory = 'Tout';
   bool _isLoading = true;
   bool _hasError = false;
-  bool _showFavorites = false;
+  int _currentIndex = 0; // 0: Explorer, 1: Carte du Gabon, 2: Favoris
 
   @override
   void initState() {
@@ -68,7 +69,7 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   List<SiteTouristique> get _sitesAffiches {
-    final sites = _showFavorites
+    final sites = _currentIndex == 2
         ? _sites.where((site) => _favorites.contains(site.id)).toList()
         : _sites;
     return widget.controller.filtrerSites(
@@ -90,7 +91,9 @@ class _DiscoverViewState extends State<DiscoverView> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: _isLoading
+        child: _currentIndex == 1
+            ? GabonMapView(controller: widget.controller)
+            : _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _hasError
             ? _buildErreur()
@@ -98,15 +101,20 @@ class _DiscoverViewState extends State<DiscoverView> {
       ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: Colors.white,
-        selectedIndex: _showFavorites ? 1 : 0,
+        selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
-          setState(() => _showFavorites = index == 1);
+          setState(() => _currentIndex = index);
         },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.explore_outlined),
             selectedIcon: Icon(Icons.explore),
             label: 'Explorer',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Carte du Gabon',
           ),
           NavigationDestination(
             icon: Icon(Icons.favorite_outline),
@@ -245,9 +253,9 @@ class _DiscoverViewState extends State<DiscoverView> {
                   const SizedBox(height: 18),
                   _WelcomeBanner(
                     site: featuredSite,
-                    isFavorites: _showFavorites,
+                    isFavorites: _currentIndex == 2,
                     onExplore: () => setState(() {
-                      _showFavorites = false;
+                      _currentIndex = 0;
                       _selectedCategory = 'Tout';
                     }),
                   ),
@@ -384,7 +392,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _showFavorites
+                              _currentIndex == 2
                                   ? 'Vos coups de cœur'
                                   : 'À ne pas manquer',
                               style: const TextStyle(
@@ -396,7 +404,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              _showFavorites
+                              _currentIndex == 2
                                   ? 'Vos belles découvertes enregistrées'
                                   : 'Des expériences inoubliables vous attendent',
                               style: const TextStyle(
@@ -439,7 +447,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    _showFavorites && _favorites.isEmpty
+                    _currentIndex == 2 && _favorites.isEmpty
                         ? 'Ajoutez un lieu à vos favoris pour le retrouver ici.'
                         : 'Aucun lieu ne correspond à votre recherche.',
                     textAlign: TextAlign.center,
