@@ -1,0 +1,6 @@
+package com.example.tour_gabon;
+
+import io.flutter.embedding.android.FlutterActivity;
+
+public class MainActivity extends FlutterActivity {
+}
