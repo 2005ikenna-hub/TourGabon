@@ -1,30 +1,57 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tour_gabon/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('affiche et filtre les lieux touristiques', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Parc national de Loango'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('discover-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(find.text('Explorez le Gabon'), findsOneWidget);
+    expect(find.text('Parc national de Loango'), findsOneWidget);
+    expect(find.text('Pointe-Denis'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Loango');
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Parc national de Loango'), findsOneWidget);
+    expect(find.text('Pointe-Denis'), findsNothing);
+  });
+
+  testWidgets('ouvre la fiche du lieu sélectionné', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+
+    final siteCard = find.byKey(const ValueKey('site-card-1'));
+    await tester.scrollUntilVisible(
+      siteCard,
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('discover-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(siteCard);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Localisation'), findsOneWidget);
+    expect(find.text('Latitude'), findsOneWidget);
   });
 }
