@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../controllers/site_controller.dart';
 import '../models/site_touristique.dart';
 import 'gabon_map_view.dart';
+import 'login_view.dart';
 
 const _gabonGreen = Color(0xFF009E49);
 const _gabonYellow = Color(0xFFFCD116);
@@ -244,6 +245,27 @@ class _DiscoverViewState extends State<DiscoverView> {
                           onPressed: _chargerSites,
                           icon: const Icon(
                             Icons.refresh_rounded,
+                            color: _forest,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: IconButton(
+                          tooltip: 'Mon Compte / Connexion',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => LoginView(siteCatalog: widget.controller.catalog),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.person_outline_rounded,
                             color: _forest,
                           ),
                         ),

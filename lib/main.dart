@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'controllers/site_controller.dart';
 import 'models/repositories/demo_site_catalog.dart';
 import 'models/repositories/site_catalog.dart';
-import 'views/login_view.dart';
+import 'views/discover_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -62,7 +63,7 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: LoginView(siteCatalog: siteCatalog),
+      home: DiscoverView(controller: SiteController(siteCatalog)),
     );
   }
 }

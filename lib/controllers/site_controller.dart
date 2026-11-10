@@ -6,6 +6,8 @@ class SiteController {
 
   final SiteCatalog _catalog;
 
+  SiteCatalog get catalog => _catalog;
+
   Future<List<SiteTouristique>> obtenirSites() {
     return _catalog.obtenirSitesParLangue('fr');
   }
