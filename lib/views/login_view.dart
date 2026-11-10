@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../controllers/site_controller.dart';
 import '../models/repositories/site_catalog.dart';
 import 'discover_view.dart';
+import 'register_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key, required this.siteCatalog});
@@ -254,6 +255,24 @@ class _LoginViewState extends State<LoginView> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => RegisterView(siteCatalog: widget.siteCatalog),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'Pas de compte ? Créer un compte',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: _gabonGreen,
                                 ),
                               ),
                             ),
