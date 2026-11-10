@@ -12,7 +12,13 @@ class DemoSiteCatalog implements SiteCatalog {
           '• Particularité : Célèbre mondialement pour ses éléphants, buffles et gorilles qui marchent directement sur les plages sauvages de l’océan Atlantique.\n\n'
           '• Position & Valeur : Situé sur la côte atlantique (Ogooué-Maritime), c’est un joyau mondialement reconnu et inscrit au patrimoine naturel de l’UNESCO.\n\n'
           '• Avantage : Observation unique de la grande faune sauvage terrestre au bord de l’eau.\n\n'
-          '• Pourquoi le visiter : Pour vivre une aventure équatoriale hors du commun et observer des animaux sauvages dans un décor de rêve entre forêt et vagues.',
+          '• Pourquoi le visiter : Pour vivre une aventure équatoriale hors du commun et observer des animaux sauvages dans un décor de rêve entre forêt et vagues.\n\n'
+          '📸 **Galerie commentée & Points d’intérêt du Parc de Loango** :\n'
+          '1. *Lodge sur pilotis au bord de la lagune* : Hébergement éco-touristique harmonieux suspendu au-dessus de l’eau.\n'
+          '2. *Ponton et quais en bois* : Point de départ idéal pour les safaris nautiques et l’observation de la faune aquatique.\n'
+          '3. *Gorille des plaines de l’Ouest* : Rencontre exceptionnelle avec les grands singes dans leur habitat naturel protégé.\n'
+          '4. *Éléphants sur la plage* : L’inoubliable spectacle des pachydermes marchant le long des vagues de l’océan Atlantique.\n'
+          '5. *Lodge au crépuscule* : Vue magique et apaisante des structures en bois illuminées au coucher du soleil.',
       latitude: -2.2500,
       longitude: 9.6167,
       categorie: 'Nature',
