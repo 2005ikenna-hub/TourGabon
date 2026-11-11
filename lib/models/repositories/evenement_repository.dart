@@ -1,46 +1,31 @@
 // lib/models/repositories/evenement_repository.dart
-import '../data_sources/xmlforge_database.dart';
+import '../data_sources/api_client.dart';
 
 class EvenementRepository {
-  final XmlForgeDatabase _dataSource = XmlForgeDatabase.instance;
+  EvenementRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  // CREATE : Planifier et publier une micro-aventure ou une animation locale
-  Future<bool> creerEvenement(String idSite, String titre, String desc, String debut, String fin, String idCreateur) async {
-    final String query = '''
-      INSERT INTO evenements (id_site, titre, description, date_debut, date_fin, id_createur)
-      VALUES ($idSite, '${titre.replaceAll("'", "''")}', '${desc.replaceAll("'", "''")}', '$debut', '$fin', $idCreateur);
-    ''';
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-    return response['status'] == 2;
-  }
+  final ApiClient _api;
 
-  // READ : Récupérer l'agenda en cours (filtré par ordre chronologique à venir)
+  /// GET /api/evenements?avenir=1 — agenda en cours et à venir, trié par date.
   Future<List<Map<String, dynamic>>> obtenirAgendaActuel() async {
-    // Note : XMLForge n'acceptant pas les calculs complexes de fonctions de dates, on extrait l'agenda ordonné
-    const String query = "SELECT * FROM evenements ORDER BY date_debut ASC;";
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-
-    if (response['status'] == 2 && response.containsKey('result')) {
-      return List<Map<String, dynamic>>.from(response['result']['rows'] as List);
-    }
-    return [];
+    final reponse = await _api.get('/api/evenements', query: {'avenir': '1'}) as Map<String, dynamic>;
+    return List<Map<String, dynamic>>.from(reponse['data'] as List);
   }
 
-  // UPDATE : Reporter ou modifier les détails logistiques d'un festival/marché
-  Future<bool> modifierEvenement(String idEvenement, String titre, String debut, String fin) async {
-    final String query = '''
-      UPDATE evenements 
-      SET titre = '${titre.replaceAll("'", "''")}', date_debut = '$debut', date_fin = '$fin' 
-      WHERE id = $idEvenement;
-    ''';
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-    return response['status'] == 2;
-  }
-
-  // DELETE : Annuler un événement culturel
-  Future<bool> annulerEvenement(String idEvenement) async {
-    final String query = "DELETE FROM evenements WHERE id = $idEvenement;";
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-    return response['status'] == 2;
+  /// POST /api/evenements — réservé aux comptes Admin et Local.
+  Future<void> creerEvenement({
+    required String idSite,
+    required String titre,
+    required String description,
+    required String debut, // 'AAAA-MM-JJ HH:MM:SS'
+    required String fin,
+  }) async {
+    await _api.post('/api/evenements', {
+      'id_site': int.parse(idSite),
+      'titre': titre,
+      'description': description,
+      'date_debut': debut,
+      'date_fin': fin,
+    });
   }
 }

@@ -1,14 +1,16 @@
 // lib/views/login_view.dart
 import 'package:flutter/material.dart';
 
+import '../controllers/auth_controller.dart';
 import '../controllers/site_controller.dart';
 import '../models/repositories/site_catalog.dart';
 import 'discover_view.dart';
 
 class LoginView extends StatefulWidget {
-  const LoginView({super.key, required this.siteCatalog});
+  const LoginView({super.key, required this.siteCatalog, this.authController});
 
   final SiteCatalog siteCatalog;
+  final AuthController? authController;
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -16,8 +18,9 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'voyageur@tourgabon.ga');
-  final _passwordController = TextEditingController(text: 'gabon2025');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  late final AuthController _auth = widget.authController ?? AuthController();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -26,17 +29,25 @@ class _LoginViewState extends State<LoginView> {
   static const _gabonBlue = Color(0xFF003DA5);
   static const _ink = Color(0xFF10251B);
 
-  void _handleLogin() {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() => _isLoading = true);
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => DiscoverView(controller: SiteController(widget.siteCatalog)),
+  Future<void> _handleLogin() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _isLoading = true);
+    try {
+      await _auth.connecter(_emailController.text, _passwordController.text);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => DiscoverView(
+            controller: SiteController(widget.siteCatalog, langue: _auth.langue),
           ),
-        );
-      });
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
     }
   }
 
@@ -263,7 +274,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      '© 2025 TourGabon — République Gabonaise',
+                      '© 2026 TourGabon — République Gabonaise',
                       style: TextStyle(
                         color: Color(0xB3FFFFFF),
                         fontSize: 11,

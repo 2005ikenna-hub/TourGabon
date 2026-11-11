@@ -2,12 +2,13 @@ import '../models/repositories/site_catalog.dart';
 import '../models/site_touristique.dart';
 
 class SiteController {
-  const SiteController(this._catalog);
+  const SiteController(this._catalog, {this.langue = 'fr'});
 
   final SiteCatalog _catalog;
+  final String langue;
 
   Future<List<SiteTouristique>> obtenirSites() {
-    return _catalog.obtenirSitesParLangue('fr');
+    return _catalog.obtenirSitesParLangue(langue);
   }
 
   List<SiteTouristique> filtrerSites(

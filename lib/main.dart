@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models/repositories/demo_site_catalog.dart';
 import 'models/repositories/site_catalog.dart';
+import 'models/repositories/site_repository.dart';
 import 'views/login_view.dart';
 
 void main() {
@@ -9,12 +10,10 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({
-    super.key,
-    this.siteCatalog = const DemoSiteCatalog(),
-  });
+  const MyApp({super.key, this.siteCatalog});
 
-  final SiteCatalog siteCatalog;
+  /// Par défaut : l'API REST, avec le catalogue local en secours si elle est injoignable.
+  final SiteCatalog? siteCatalog;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +61,10 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: LoginView(siteCatalog: siteCatalog),
+      home: LoginView(
+        siteCatalog: siteCatalog ??
+            SiteCatalogAvecSecours(SiteRepository(), const DemoSiteCatalog()),
+      ),
     );
   }
 }

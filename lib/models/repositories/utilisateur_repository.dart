@@ -1,49 +1,38 @@
 // lib/models/repositories/utilisateur_repository.dart
+import '../data_sources/api_client.dart';
 import '../utilisateur.dart';
-import '../data_sources/xmlforge_database.dart';
 
 class UtilisateurRepository {
-  final XmlForgeDatabase _dataSource = XmlForgeDatabase.instance;
+  UtilisateurRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
-  // CREATE : Inscription d'un nouvel utilisateur
-  Future<bool> inscrireUtilisateur(Utilisateur user, String motDePasseHache) async {
-    final String query = '''
-      INSERT INTO utilisateurs (nom, email, mot_de_passe, type, langue)
-      VALUES ('${user.nom.replaceAll("'", "''")}', '${user.email.replaceAll("'", "''")}', '$motDePasseHache', '${user.type}', '${user.langue}');
-    ''';
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-    return response['status'] == 2;
+  final ApiClient _api;
+
+  /// POST /api/auth/register — le mot de passe est haché côté serveur.
+  Future<void> inscrire({
+    required String nom,
+    required String email,
+    required String motDePasse,
+    required String type,
+    required String langue,
+  }) async {
+    await _api.post('/api/auth/register', {
+      'nom': nom,
+      'email': email,
+      'mots_de_passe': motDePasse,
+      'type': type,
+      'langue_preference': langue,
+    });
   }
 
-  // READ : Connexion et récupération du profil utilisateur
-  Future<Utilisateur?> connecterUtilisateur(String email, String motDePasseHache) async {
-    final String query = "SELECT * FROM utilisateurs WHERE email = '${email.replaceAll("'", "''")}' AND mot_de_passe = '$motDePasseHache' LIMIT 1;";
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-
-    if (response['status'] == 2 && response.containsKey('result')) {
-      final List<dynamic> rows = response['result']['rows'] as List<dynamic>;
-      if (rows.isNotEmpty) {
-        return Utilisateur.fromJson(rows.first as Map<String, dynamic>);
-      }
-    }
-    return null;
+  /// POST /api/auth/login — mémorise le jeton JWT pour les requêtes suivantes.
+  Future<Utilisateur> connecter(String email, String motDePasse) async {
+    final reponse = await _api.post('/api/auth/login', {
+      'email': email,
+      'mots_de_passe': motDePasse,
+    }) as Map<String, dynamic>;
+    _api.definirToken(reponse['token'] as String);
+    return Utilisateur.fromJson(reponse['user'] as Map<String, dynamic>);
   }
 
-  // UPDATE : Mise à jour des préférences (Changement de langue ou de profil)
-  Future<bool> mettreAJourPreferences(String idUser, String typeProfil, String codeLangue) async {
-    final String query = '''
-      UPDATE utilisateurs 
-      SET type = '$typeProfil', langue = '$codeLangue' 
-      WHERE id = $idUser;
-    ''';
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-    return response['status'] == 2;
-  }
-
-  // DELETE : Clôture / Suppression du compte utilisateur
-  Future<bool> supprimerCompte(String idUser) async {
-    final String query = "DELETE FROM utilisateurs WHERE id = $idUser;";
-    final response = await _dataSource.sendFrame(2, {'session_token': _dataSource.sessionToken, 'query': query});
-    return response['status'] == 2;
-  }
+  void deconnecter() => _api.definirToken(null);
 }

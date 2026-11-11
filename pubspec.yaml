@@ -1,5 +1,5 @@
 name: tour_gabon
-description: "A new Flutter project."
+description: "TourGabon - application mobile de tourisme au Gabon (Flutter + API Node.js + XMLForge)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  connectivity_plus: ^6.0.0 # Pour détecter si XMLForge est joignable en réseau
+  http: ^1.2.2 # Appels REST vers l'API Node.js
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

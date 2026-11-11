@@ -3,8 +3,8 @@ class Utilisateur {
   final String id;
   final String nom;
   final String email;
-  final String type; // 'Étranger' ou 'Local'
-  final String langue;
+  final String type; // 'Étranger', 'Local' ou 'Admin'
+  final String langue; // code de langue : 'fr' ou 'en'
 
   Utilisateur({
     required this.id,
@@ -14,13 +14,15 @@ class Utilisateur {
     required this.langue,
   });
 
+  bool get estAdmin => type == 'Admin';
+
   factory Utilisateur.fromJson(Map<String, dynamic> json) {
     return Utilisateur(
       id: json['id'].toString(),
       nom: json['nom'] as String,
       email: json['email'] as String,
       type: json['type'] as String,
-      langue: json['langue'] as String? ?? 'fr',
+      langue: (json['langue_preference'] ?? json['langue']) as String? ?? 'fr',
     );
   }
 
@@ -30,7 +32,7 @@ class Utilisateur {
       'nom': nom,
       'email': email,
       'type': type,
-      'langue': langue,
+      'langue_preference': langue,
     };
   }
 }

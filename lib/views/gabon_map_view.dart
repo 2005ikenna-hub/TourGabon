@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../controllers/site_controller.dart';
 import '../models/site_touristique.dart';
-import 'discover_view.dart';
+import 'package:tour_gabon/views/discover_view.dart';
+import 'package:tour_gabon/views/site_photo.dart';
 
 class GabonMapView extends StatefulWidget {
   const GabonMapView({super.key, required this.controller});
@@ -364,8 +365,9 @@ class _GabonMapViewState extends State<GabonMapView> {
                               contentPadding: const EdgeInsets.all(12),
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  site.urlPhotos.isNotEmpty ? site.urlPhotos : 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=200&q=80',
+                                child: SitePhoto(
+                                  site: site,
+                                  fallbackUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=200&q=80',
                                   width: 60,
                                   height: 60,
                                   fit: BoxFit.cover,
@@ -396,15 +398,16 @@ class _GabonMapViewState extends State<GabonMapView> {
                               ),
                               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: _gabonGreen),
                               onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => SiteDetailView(
-                                      site: site,
-                                      isFavorite: false,
-                                      onFavoritePressed: () {},
-                                    ),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    // On passe ici le contrôleur requis en utilisant 'widget.controller'
+                                    builder: (_) => DiscoverView(controller: widget.controller),
                                   ),
                                 );
+
+
+
                               },
                             ),
                           );

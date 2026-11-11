@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../controllers/site_controller.dart';
 import '../models/site_touristique.dart';
-<<<<<<< HEAD
-=======
 import 'gabon_map_view.dart';
->>>>>>> feature/frontend-vue
+import 'site_photo.dart';
 
 const _gabonGreen = Color(0xFF009E49);
 const _gabonYellow = Color(0xFFFCD116);
@@ -32,11 +30,7 @@ class _DiscoverViewState extends State<DiscoverView> {
   String _selectedCategory = 'Tout';
   bool _isLoading = true;
   bool _hasError = false;
-<<<<<<< HEAD
-  bool _showFavorites = false;
-=======
   int _currentIndex = 0; // 0: Explorer, 1: Carte du Gabon, 2: Favoris
->>>>>>> feature/frontend-vue
 
   @override
   void initState() {
@@ -76,11 +70,7 @@ class _DiscoverViewState extends State<DiscoverView> {
   }
 
   List<SiteTouristique> get _sitesAffiches {
-<<<<<<< HEAD
-    final sites = _showFavorites
-=======
     final sites = _currentIndex == 2
->>>>>>> feature/frontend-vue
         ? _sites.where((site) => _favorites.contains(site.id)).toList()
         : _sites;
     return widget.controller.filtrerSites(
@@ -102,13 +92,9 @@ class _DiscoverViewState extends State<DiscoverView> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-<<<<<<< HEAD
-        child: _isLoading
-=======
         child: _currentIndex == 1
             ? GabonMapView(controller: widget.controller)
             : _isLoading
->>>>>>> feature/frontend-vue
             ? const Center(child: CircularProgressIndicator())
             : _hasError
             ? _buildErreur()
@@ -116,15 +102,9 @@ class _DiscoverViewState extends State<DiscoverView> {
       ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: Colors.white,
-<<<<<<< HEAD
-        selectedIndex: _showFavorites ? 1 : 0,
-        onDestinationSelected: (index) {
-          setState(() => _showFavorites = index == 1);
-=======
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() => _currentIndex = index);
->>>>>>> feature/frontend-vue
         },
         destinations: const [
           NavigationDestination(
@@ -133,14 +113,11 @@ class _DiscoverViewState extends State<DiscoverView> {
             label: 'Explorer',
           ),
           NavigationDestination(
-<<<<<<< HEAD
-=======
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map),
             label: 'Carte du Gabon',
           ),
           NavigationDestination(
->>>>>>> feature/frontend-vue
             icon: Icon(Icons.favorite_outline),
             selectedIcon: Icon(Icons.favorite),
             label: 'Favoris',
@@ -277,15 +254,9 @@ class _DiscoverViewState extends State<DiscoverView> {
                   const SizedBox(height: 18),
                   _WelcomeBanner(
                     site: featuredSite,
-<<<<<<< HEAD
-                    isFavorites: _showFavorites,
-                    onExplore: () => setState(() {
-                      _showFavorites = false;
-=======
                     isFavorites: _currentIndex == 2,
                     onExplore: () => setState(() {
                       _currentIndex = 0;
->>>>>>> feature/frontend-vue
                       _selectedCategory = 'Tout';
                     }),
                   ),
@@ -422,11 +393,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-<<<<<<< HEAD
-                              _showFavorites
-=======
                               _currentIndex == 2
->>>>>>> feature/frontend-vue
                                   ? 'Vos coups de cœur'
                                   : 'À ne pas manquer',
                               style: const TextStyle(
@@ -438,11 +405,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-<<<<<<< HEAD
-                              _showFavorites
-=======
                               _currentIndex == 2
->>>>>>> feature/frontend-vue
                                   ? 'Vos belles découvertes enregistrées'
                                   : 'Des expériences inoubliables vous attendent',
                               style: const TextStyle(
@@ -485,11 +448,7 @@ class _DiscoverViewState extends State<DiscoverView> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-<<<<<<< HEAD
-                    _showFavorites && _favorites.isEmpty
-=======
                     _currentIndex == 2 && _favorites.isEmpty
->>>>>>> feature/frontend-vue
                         ? 'Ajoutez un lieu à vos favoris pour le retrouver ici.'
                         : 'Aucun lieu ne correspond à votre recherche.',
                     textAlign: TextAlign.center,
@@ -559,9 +518,9 @@ class _WelcomeBanner extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
+            SitePhoto(
+              site: site,
+              fallbackUrl: imageUrl,
               errorBuilder: (_, _, _) => _GradientArtwork(
                 colors: const [Color(0xFF174B38), Color(0xFF76A663)],
                 icon: Icons.forest_rounded,
@@ -1105,9 +1064,9 @@ class _SiteArtwork extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           _GradientArtwork(colors: appearance.colors, icon: appearance.icon),
-          Image.network(
-            _imageFor(site),
-            fit: BoxFit.cover,
+          SitePhoto(
+            site: site,
+            fallbackUrl: _imageFor(site),
             errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
           const DecoratedBox(

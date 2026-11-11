@@ -2,13 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tour_gabon/main.dart';
+import 'package:tour_gabon/models/repositories/demo_site_catalog.dart';
+
+Future<void> ouvrirEnInvite(WidgetTester tester) async {
+  await tester.pumpWidget(const MyApp(siteCatalog: DemoSiteCatalog()));
+  await tester.pumpAndSettle();
+  final invite = find.text('Continuer en mode invité');
+  await tester.ensureVisible(invite);
+  await tester.tap(invite);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets('affiche et filtre les lieux touristiques', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await ouvrirEnInvite(tester);
 
     await tester.scrollUntilVisible(
       find.text('Parc national de Loango'),
@@ -34,8 +43,7 @@ void main() {
   testWidgets('ouvre la fiche du lieu sélectionné', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await ouvrirEnInvite(tester);
 
     final siteCard = find.byKey(const ValueKey('site-card-1'));
     await tester.scrollUntilVisible(
