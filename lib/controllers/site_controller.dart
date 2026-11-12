@@ -21,7 +21,8 @@ class SiteController {
     return sites.where((site) {
       final matchesCategory =
           categorie == 'Tout' || site.categorie == categorie;
-      final matchesQuery = normalizedQuery.isEmpty ||
+      final matchesQuery =
+          normalizedQuery.isEmpty ||
           site.nom.toLowerCase().contains(normalizedQuery) ||
           site.description.toLowerCase().contains(normalizedQuery) ||
           site.categorie.toLowerCase().contains(normalizedQuery);

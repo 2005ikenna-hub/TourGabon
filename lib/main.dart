@@ -1,70 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:video_player_media_kit/video_player_media_kit.dart';
 
+import 'controllers/site_controller.dart';
 import 'models/repositories/demo_site_catalog.dart';
 import 'models/repositories/site_catalog.dart';
-import 'models/repositories/site_repository.dart';
-import 'views/login_view.dart';
+import 'views/discover_view.dart';
 
 void main() {
+  VideoPlayerMediaKit.ensureInitialized(
+    android: true,
+    iOS: true,
+    windows: true,
+  );
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, this.siteCatalog});
+  const MyApp({super.key, this.siteCatalog = const DemoSiteCatalog()});
 
-  /// Par défaut : l'API REST, avec le catalogue local en secours si elle est injoignable.
-  final SiteCatalog? siteCatalog;
+  final SiteCatalog siteCatalog;
 
   @override
   Widget build(BuildContext context) {
-    const gabonGreen = Color(0xFF009E49);
-    const gabonYellow = Color(0xFFFCD116);
-    const gabonBlue = Color(0xFF003DA5);
-    const cream = Color(0xFFF7F9F6);
+    const forest = Color(0xFF145C43);
+    const ocean = Color(0xFF167F9C);
+    const sunlight = Color(0xFFF2B72C);
+    const cream = Color(0xFFF8F8F3);
+    const ink = Color(0xFF18352A);
 
     return MaterialApp(
-      title: 'TourGabon - Découvrez le Gabon',
+      title: 'TourGabon',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: gabonGreen,
-          primary: gabonGreen,
-          secondary: gabonYellow,
-          tertiary: gabonBlue,
-          brightness: Brightness.light,
+        colorScheme: const ColorScheme.light(
+          primary: forest,
+          onPrimary: Colors.white,
+          secondary: ocean,
+          onSecondary: Colors.white,
+          tertiary: sunlight,
+          onTertiary: ink,
+          surface: cream,
+          onSurface: ink,
+          error: Color(0xFFB3261E),
+          onError: Colors.white,
         ),
         scaffoldBackgroundColor: cream,
         fontFamily: 'Roboto',
+        textTheme: ThemeData.light().textTheme.apply(
+          bodyColor: ink,
+          displayColor: ink,
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: forest,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          hintStyle: const TextStyle(color: Color(0xFF8A9890)),
+          prefixIconColor: forest,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: ocean, width: 1.4),
+          ),
+        ),
         navigationBarTheme: NavigationBarThemeData(
-          height: 72,
-          backgroundColor: Colors.white,
-          indicatorColor: gabonYellow.withValues(alpha: 0.3),
+          height: 76,
+          backgroundColor: cream,
+          indicatorColor: const Color(0xFFDCECE1),
+          surfaceTintColor: Colors.transparent,
+          shadowColor: const Color(0x1A18352A),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             return TextStyle(
               fontSize: 12,
               fontWeight: states.contains(WidgetState.selected)
                   ? FontWeight.w700
                   : FontWeight.w500,
-              color: states.contains(WidgetState.selected) ? gabonGreen : const Color(0xFF555555),
-            );
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            return IconThemeData(
-              color: states.contains(WidgetState.selected) ? gabonGreen : const Color(0xFF666666),
+              color: states.contains(WidgetState.selected)
+                  ? forest
+                  : const Color(0xFF77847B),
             );
           }),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: cream,
           surfaceTintColor: Colors.transparent,
-          elevation: 0,
+          foregroundColor: forest,
         ),
       ),
-      home: LoginView(
-        siteCatalog: siteCatalog ??
-            SiteCatalogAvecSecours(SiteRepository(), const DemoSiteCatalog()),
-      ),
+      home: DiscoverView(controller: SiteController(siteCatalog)),
     );
   }
 }

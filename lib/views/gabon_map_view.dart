@@ -1,423 +1,539 @@
-// lib/views/gabon_map_view.dart
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
 
-import '../controllers/site_controller.dart';
-import '../models/site_touristique.dart';
-import 'package:tour_gabon/views/discover_view.dart';
-import 'package:tour_gabon/views/site_photo.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
+
+const _forest = Color(0xFF145C43);
+const _ocean = Color(0xFF167F9C);
+const _ink = Color(0xFF18352A);
+const _muted = Color(0xFF77847B);
+const _loango = LatLng(-2.25, 9.6167);
 
 class GabonMapView extends StatefulWidget {
-  const GabonMapView({super.key, required this.controller});
-
-  final SiteController controller;
+  const GabonMapView({super.key});
 
   @override
   State<GabonMapView> createState() => _GabonMapViewState();
 }
 
 class _GabonMapViewState extends State<GabonMapView> {
-  List<SiteTouristique> _sites = [];
-  bool _isLoading = true;
-  String? _selectedProvince;
+  final MapController _mapController = MapController();
 
-  static const _gabonGreen = Color(0xFF009E49);
-  static const _gabonYellow = Color(0xFFFCD116);
-  static const _gabonBlue = Color(0xFF003DA5);
-  static const _ink = Color(0xFF10251B);
-  static const _muted = Color(0xFF6A796F);
+  Position? _position;
+  List<LatLng> _routePoints = const [];
+  double? _routeDistanceMeters;
+  Duration? _routeDuration;
+  String? _errorMessage;
+  bool _isLocating = false;
+  bool _isRouting = false;
+  bool _mapReady = false;
+  bool _permissionPermanentlyDenied = false;
 
-  final List<Map<String, dynamic>> _provinces = [
-    {
-      'nom': 'Estuaire',
-      'chefLieu': 'Libreville',
-      'description': 'Capitale politique, plages de sable fin, Pointe Denis et parc national d’Akanda.',
-      'icon': Icons.location_city_rounded,
-      'color': _gabonGreen,
-    },
-    {
-      'nom': 'Ogooué-Maritime',
-      'chefLieu': 'Port-Gentil',
-      'description': 'Capitale économique, littoral atlantique, lagunes et réserve de Loango.',
-      'icon': Icons.waves_rounded,
-      'color': _gabonBlue,
-    },
-    {
-      'nom': 'Haut-Ogooué',
-      'chefLieu': 'Franceville',
-      'description': 'Plateaux spectaculaires, sources chaudes de Lekedi et faune diversifiée.',
-      'icon': Icons.terrain_rounded,
-      'color': _gabonYellow,
-    },
-    {
-      'nom': 'Moyen-Ogooué',
-      'chefLieu': 'Lambaréné',
-      'description': 'Terre du Dr. Albert Schweitzer, lacs pittoresques et navigation sur l’Ogooué.',
-      'icon': Icons.water_rounded,
-      'color': Color(0xFF145C43),
-    },
-    {
-      'nom': 'Ogooué-Ivindo',
-      'chefLieu': 'Makokou',
-      'description': 'Forêts primaires denses, majestueuses chutes de Kongou et parc national d’Ivindo.',
-      'icon': Icons.park_rounded,
-      'color': Color(0xFF0D6836),
-    },
-    {
-      'nom': 'Woleu-Ntem',
-      'chefLieu': 'Oyem',
-      'description': 'Plateau septentrional, collines verdoyantes, culture et traditions fang.',
-      'icon': Icons.eco_rounded,
-      'color': Color(0xFF2C8A62),
-    },
-  ];
+  Future<bool> _localiser() async {
+    setState(() {
+      _isLocating = true;
+      _errorMessage = null;
+      _permissionPermanentlyDenied = false;
+    });
 
-  @override
-  void initState() {
-    super.initState();
-    _chargerSites();
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _setError('Active la localisation de ton appareil puis réessaie.');
+        return false;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _permissionPermanentlyDenied = true;
+        _setError(
+          'L’accès à la position est bloqué. Autorise-le dans les réglages.',
+        );
+        return false;
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.unableToDetermine) {
+        _setError('Autorise l’accès à ta position pour te localiser.');
+        return false;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      if (!mounted) return false;
+      setState(() {
+        _position = position;
+        _routePoints = const [];
+        _routeDistanceMeters = null;
+        _routeDuration = null;
+      });
+      if (_mapReady) {
+        _mapController.move(LatLng(position.latitude, position.longitude), 12);
+      }
+      return true;
+    } on TimeoutException {
+      _setError('La localisation prend trop de temps. Vérifie le signal GPS.');
+      return false;
+    } on LocationServiceDisabledException {
+      _setError('Active la localisation de ton appareil puis réessaie.');
+      return false;
+    } on PermissionDeniedException {
+      _setError('L’accès à ta position a été refusé.');
+      return false;
+    } on PlatformException catch (error) {
+      _setError('Impossible de récupérer ta position : ${error.message}');
+      return false;
+    } on Exception catch (error) {
+      _setError('Impossible de récupérer ta position : $error');
+      return false;
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
-  Future<void> _chargerSites() async {
+  void _setError(String message) {
+    if (!mounted) return;
+    setState(() => _errorMessage = message);
+  }
+
+  Future<void> _tracerItineraire() async {
+    if (_position == null && !await _localiser()) return;
+    if (!mounted) return;
+
+    final position = _position;
+    if (position == null) return;
+
+    setState(() {
+      _isRouting = true;
+      _errorMessage = null;
+      _routePoints = const [];
+      _routeDistanceMeters = null;
+      _routeDuration = null;
+    });
+
+    final uri = Uri.https(
+      'router.project-osrm.org',
+      '/route/v1/driving/'
+          '${position.longitude},${position.latitude};'
+          '${_loango.longitude},${_loango.latitude}',
+      {'overview': 'full', 'geometries': 'geojson', 'steps': 'false'},
+    );
+
     try {
-      final sites = await widget.controller.obtenirSites();
+      final response = await http.get(uri).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw const FormatException('Le service de trajet est indisponible.');
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('Réponse invalide du service de trajet.');
+      }
+      final routes = decoded['routes'];
+      if (decoded['code'] != 'Ok' || routes is! List || routes.isEmpty) {
+        throw StateError(
+          'Aucun itinéraire routier n’a été trouvé pour cette position.',
+        );
+      }
+      final route = routes.first;
+      if (route is! Map<String, dynamic>) {
+        throw const FormatException('Données d’itinéraire invalides.');
+      }
+      final distance = route['distance'];
+      final duration = route['duration'];
+      final geometry = route['geometry'];
+      if (distance is! num ||
+          duration is! num ||
+          geometry is! Map<String, dynamic> ||
+          geometry['coordinates'] is! List) {
+        throw const FormatException('Données d’itinéraire incomplètes.');
+      }
+
+      final coordinates = geometry['coordinates'] as List;
+      final points = <LatLng>[];
+      for (final coordinate in coordinates) {
+        if (coordinate is! List ||
+            coordinate.length < 2 ||
+            coordinate[0] is! num ||
+            coordinate[1] is! num) {
+          throw const FormatException('Tracé d’itinéraire invalide.');
+        }
+        points.add(
+          LatLng(
+            (coordinate[1] as num).toDouble(),
+            (coordinate[0] as num).toDouble(),
+          ),
+        );
+      }
+      if (points.length < 2) {
+        throw const FormatException('Le tracé reçu est incomplet.');
+      }
+
       if (!mounted) return;
       setState(() {
-        _sites = sites;
-        _isLoading = false;
+        _routePoints = points;
+        _routeDistanceMeters = distance.toDouble();
+        _routeDuration = Duration(seconds: duration.round());
       });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      _afficherItineraire();
+    } on TimeoutException {
+      _setError('Le calcul du trajet a expiré. Vérifie ta connexion internet.');
+    } on http.ClientException catch (error) {
+      _setError('Le service de trajet est inaccessible : ${error.message}');
+    } on FormatException catch (error) {
+      _setError(error.message);
+    } on StateError catch (error) {
+      _setError(error.message.toString());
+    } on Exception catch (error) {
+      _setError('Impossible de calculer le trajet : $error');
+    } finally {
+      if (mounted) setState(() => _isRouting = false);
     }
+  }
+
+  void _afficherItineraire() {
+    if (!_mapReady || _routePoints.isEmpty) return;
+    _mapController.fitCamera(
+      CameraFit.coordinates(
+        coordinates: _routePoints,
+        padding: const EdgeInsets.fromLTRB(48, 48, 48, 48),
+        maxZoom: 12,
+      ),
+    );
+  }
+
+  Future<void> _ouvrirReglages() async {
+    try {
+      final opened = await Geolocator.openAppSettings();
+      if (!opened && mounted) {
+        _setError('Ouvre les réglages de l’application pour autoriser le GPS.');
+      }
+    } on PlatformException catch (error) {
+      _setError('Impossible d’ouvrir les réglages : ${error.message}');
+    }
+  }
+
+  String _dureeFormatee(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    if (hours == 0) return '$minutes min';
+    return '$hours h ${minutes.toString().padLeft(2, '0')} min';
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isDesktop = width >= 1100;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Carte & Régions du Gabon',
-          style: TextStyle(fontWeight: FontWeight.w800, color: _ink),
+    final markers = <Marker>[
+      Marker(
+        point: _loango,
+        width: 52,
+        height: 76,
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.location_on, color: _forest, size: 42),
+            Text(
+              'Loango',
+              style: TextStyle(
+                color: _ink,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                shadows: [Shadow(color: Colors.white, blurRadius: 4)],
+              ),
+            ),
+          ],
         ),
-        centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
+      ),
+      if (_position case final position?)
+        Marker(
+          point: LatLng(position.latitude, position.longitude),
+          width: 44,
+          height: 44,
           child: Container(
-            height: 4,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [_gabonGreen, _gabonYellow, _gabonBlue],
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: _ocean, width: 3),
+              boxShadow: const [
+                BoxShadow(color: Color(0x33000000), blurRadius: 8),
+              ],
+            ),
+            child: const Icon(Icons.person_pin_circle, color: _ocean, size: 27),
+          ),
+        ),
+    ];
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1EFF1),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(Icons.map_rounded, color: _ocean),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Carte du Gabon',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Ta position et la route vers Loango',
+                      style: TextStyle(color: _muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton.filledTonal(
+                tooltip: 'Recentrer la carte sur Loango',
+                onPressed: () {
+                  _mapController.move(_loango, 7);
+                },
+                icon: const Icon(Icons.park_outlined),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _loango,
+                      initialZoom: 6,
+                      minZoom: 3,
+                      maxZoom: 18,
+                      onMapReady: () {
+                        _mapReady = true;
+                        _afficherItineraire();
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.tour_gabon',
+                      ),
+                      if (_routePoints.isNotEmpty)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: _routePoints,
+                              color: _ocean,
+                              strokeWidth: 6,
+                              borderColor: Colors.white,
+                              borderStrokeWidth: 2,
+                            ),
+                          ],
+                        ),
+                      MarkerLayer(markers: markers),
+                    ],
+                  ),
+                  Positioned(
+                    left: 10,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        '© OpenStreetMap contributors',
+                        style: TextStyle(color: _ink, fontSize: 9),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: FloatingActionButton.small(
+                      heroTag: 'center-user-location',
+                      tooltip: 'Centrer sur ma position',
+                      backgroundColor: Colors.white,
+                      foregroundColor: _ocean,
+                      onPressed: _position == null
+                          ? _localiser
+                          : () => _mapController.move(
+                              LatLng(_position!.latitude, _position!.longitude),
+                              12,
+                            ),
+                      child: const Icon(Icons.my_location),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _gabonGreen))
-          : SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 48 : 20,
-                vertical: 24,
+        if (_routeDistanceMeters != null && _routeDuration != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6F0EB),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Interactive Map Header Card
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [_gabonGreen, Color(0xFF0A4E2B)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _gabonGreen.withValues(alpha: 0.25),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _gabonYellow,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      'CARTE INTERACTIVE',
-                                      style: TextStyle(
-                                        color: _ink,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.1,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'Explorez les Provinces du Gabon',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Cliquez sur une province pour découvrir ses richesses naturelles et touristiques.',
-                                    style: TextStyle(
-                                      color: Color(0xFFE2F0E7),
-                                      fontSize: 13,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isDesktop) ...[
-                              const SizedBox(width: 24),
-                              Container(
-                                width: 100,
-                                height: 100,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.map_rounded,
-                                  size: 54,
-                                  color: _gabonYellow,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+              child: Row(
+                children: [
+                  const Icon(Icons.route_rounded, color: _forest),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${(_routeDistanceMeters! / 1000).toStringAsFixed(0)} km'
+                      '  ·  ${_dureeFormatee(_routeDuration!)} en voiture',
+                      style: const TextStyle(
+                        color: _ink,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Provinces & Pôles Touristiques',
-                        style: TextStyle(
-                          color: _ink,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFECE8),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: Color(0xFF9B3A2D),
+                    size: 19,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Color(0xFF7F3026),
+                        fontSize: 12,
                       ),
-                      const SizedBox(height: 16),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isDesktop ? 3 : (width >= 650 ? 2 : 1),
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 1.5,
-                        ),
-                        itemCount: _provinces.length,
-                        itemBuilder: (context, index) {
-                          final prov = _provinces[index];
-                          final isSelected = _selectedProvince == prov['nom'];
-                          return InkWell(
-                            onTap: () {
-                              setState(() {
-                                _selectedProvince = isSelected ? null : prov['nom'] as String;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFE5F1E9) : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected ? _gabonGreen : Colors.grey.shade200,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: (prov['color'] as Color).withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(
-                                          prov['icon'] as IconData,
-                                          color: prov['color'] as Color,
-                                          size: 22,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              prov['nom'] as String,
-                                              style: const TextStyle(
-                                                color: _ink,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                            Text(
-                                              'Chef-lieu : ${prov['chefLieu']}',
-                                              style: TextStyle(
-                                                color: prov['color'] as Color,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    prov['description'] as String,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: _muted,
-                                      fontSize: 12,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 36),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _selectedProvince != null
-                                ? 'Sites en $_selectedProvince'
-                                : 'Tous les Sites du Gabon (${_sites.length})',
-                            style: const TextStyle(
-                              color: _ink,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          if (_selectedProvince != null)
-                            TextButton(
-                              onPressed: () => setState(() => _selectedProvince = null),
-                              child: const Text('Voir tout'),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      // List of sites
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _sites.length,
-                        itemBuilder: (context, index) {
-                          final site = _sites[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(12),
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: SitePhoto(
-                                  site: site,
-                                  fallbackUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=200&q=80',
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    width: 60,
-                                    height: 60,
-                                    color: _gabonGreen.withValues(alpha: 0.2),
-                                    child: const Icon(Icons.park, color: _gabonGreen),
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                site.nom,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: _ink,
-                                ),
-                              ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  '${site.categorie} • Lat: ${site.latitude.toStringAsFixed(2)}, Lon: ${site.longitude.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    color: _muted,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: _gabonGreen),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    // On passe ici le contrôleur requis en utilisant 'widget.controller'
-                                    builder: (_) => DiscoverView(controller: widget.controller),
-                                  ),
-                                );
-
-
-
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                    ),
+                  ),
+                  if (_permissionPermanentlyDenied)
+                    TextButton(
+                      onPressed: _ouvrirReglages,
+                      child: const Text('Réglages'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLocating || _isRouting ? null : _localiser,
+                  icon: _isLocating
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location),
+                  label: const Text('Me localiser'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    foregroundColor: _ocean,
+                    side: const BorderSide(color: _ocean),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: FilledButton.icon(
+                  onPressed: _isLocating || _isRouting
+                      ? null
+                      : _tracerItineraire,
+                  icon: _isRouting
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.directions),
+                  label: Text(
+                    _isRouting ? 'Calcul…' : 'Itinéraire vers Loango',
+                  ),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    backgroundColor: _forest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 2, 20, 8),
+          child: Text(
+            'Pour calculer la route, ta position est envoyée au service public OSRM.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 10),
+          ),
+        ),
+      ],
     );
   }
 }

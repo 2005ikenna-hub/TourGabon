@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema application="TourGabon">
+  <tables>
+    <table name="users">
+      <columns>
+        <column name="id" type="INT" primaryKey="true" autoIncrement="true" nullable="false" />
+        <column name="full_name" type="VARCHAR(120)" nullable="false" />
+        <column name="email" type="VARCHAR(255)" nullable="false" unique="true" />
+        <column name="password_hash" type="VARCHAR(255)" nullable="false" />
+        <column name="user_type" type="VARCHAR(20)" nullable="false" default="tourist" />
+        <column name="language" type="VARCHAR(10)" nullable="false" default="fr" />
+        <column name="created_at" type="TIMESTAMP" default="CURRENT_TIMESTAMP" />
+      </columns>
+    </table>
+
+    <table name="sites">
+      <columns>
+        <column name="id" type="INT" primaryKey="true" autoIncrement="true" nullable="false" />
+        <column name="name" type="VARCHAR(160)" nullable="false" />
+        <column name="description" type="TEXT" nullable="false" />
+        <column name="latitude" type="REAL" nullable="false" />
+        <column name="longitude" type="REAL" nullable="false" />
+        <column name="category" type="VARCHAR(60)" nullable="false" />
+        <column name="address" type="VARCHAR(255)" />
+        <column name="image_url" type="VARCHAR(500)" />
+        <column name="created_at" type="TIMESTAMP" default="CURRENT_TIMESTAMP" />
+      </columns>
+    </table>
+
+    <table name="reviews">
+      <columns>
+        <column name="id" type="INT" primaryKey="true" autoIncrement="true" nullable="false" />
+        <column name="site_id" type="INT" nullable="false">
+          <foreignKey table="sites" column="id" onDelete="CASCADE" />
+        </column>
+        <column name="user_id" type="INT" nullable="false">
+          <foreignKey table="users" column="id" onDelete="CASCADE" />
+        </column>
+        <column name="rating" type="INT" nullable="false" />
+        <column name="comment" type="TEXT" />
+        <column name="created_at" type="TIMESTAMP" default="CURRENT_TIMESTAMP" />
+      </columns>
+    </table>
+
+    <table name="events">
+      <columns>
+        <column name="id" type="INT" primaryKey="true" autoIncrement="true" nullable="false" />
+        <column name="name" type="VARCHAR(160)" nullable="false" />
+        <column name="description" type="TEXT" nullable="false" />
+        <column name="category" type="VARCHAR(60)" nullable="false" />
+        <column name="location" type="VARCHAR(255)" nullable="false" />
+        <column name="latitude" type="REAL" />
+        <column name="longitude" type="REAL" />
+        <column name="starts_at" type="TIMESTAMP" nullable="false" />
+        <column name="ends_at" type="TIMESTAMP" />
+        <column name="image_url" type="VARCHAR(500)" />
+        <column name="created_at" type="TIMESTAMP" default="CURRENT_TIMESTAMP" />
+      </columns>
+    </table>
+  </tables>
+
+  <indexes>
+    <index name="sites_category_idx" table="sites">
+      <column name="category" />
+    </index>
+    <index name="reviews_site_id_idx" table="reviews">
+      <column name="site_id" />
+    </index>
+    <index name="reviews_user_id_idx" table="reviews">
+      <column name="user_id" />
+    </index>
+    <index name="events_starts_at_idx" table="events">
+      <column name="starts_at" />
+    </index>
+    <index name="events_category_idx" table="events">
+      <column name="category" />
+    </index>
+  </indexes>
+</schema>

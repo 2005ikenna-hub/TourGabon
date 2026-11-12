@@ -3,9 +3,16 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  connectivity_plus
+  geolocator_windows
+  media_kit_libs_windows_video
+  media_kit_video
+  volume_controller
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
+  media_kit_native_event_loop
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
